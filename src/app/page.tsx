@@ -24,6 +24,7 @@ import { QuickTaskInput } from '@/components/tasks/QuickTaskInput';
 import { TaskDetailModal } from '@/components/tasks/TaskDetailModal';
 import { CategoryModal } from '@/components/categories/CategoryModal';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
+import { AiPlanningModal } from '@/components/common/AiPlanningModal';
 import { Task, Category } from '@/types';
 import { isTaskOverdue, isTaskDueToday } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -47,6 +48,7 @@ export default function DashboardPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [showCompletedSection, setShowCompletedSection] = useState(false);
+  const [showAiPlan, setShowAiPlan] = useState(false);
 
   // Filter tasks based on search and active category / view
   const filteredTasks = useMemo(() => {
@@ -153,12 +155,21 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* AI Daily Planning Assistant Button */}
+            <button
+              onClick={() => setShowAiPlan(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition-all cursor-pointer hover:scale-[1.02]"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+              <span>Plan my day</span>
+            </button>
+
             <button
               onClick={triggerManualSummary}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs backdrop-blur border border-white/10 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs backdrop-blur border border-white/10 transition-colors cursor-pointer"
             >
-              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              <Calendar className="h-3.5 w-3.5 text-blue-200" />
               <span>Review Daily Digest</span>
             </button>
           </div>
@@ -396,6 +407,12 @@ export default function DashboardPage() {
           setIsCategoryModalOpen(false);
           setEditingCategory(null);
         }}
+      />
+
+      {/* AI Daily Planning Assistant Modal */}
+      <AiPlanningModal
+        isOpen={showAiPlan}
+        onClose={() => setShowAiPlan(false)}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Sparkles, 
   X, 
@@ -9,25 +9,90 @@ import {
   CheckCircle2, 
   ArrowRight, 
   Clock, 
-  Check
+  Check,
+  Search,
+  Mic,
+  MicOff,
+  Filter,
+  RotateCcw,
+  Sun,
+  CalendarDays,
+  CalendarRange
 } from 'lucide-react';
 import { useNotifications } from '@/context/NotificationContext';
 import { useTasks } from '@/context/TaskContext';
 import { formatDueLabel, isTaskOverdue, isTaskDueToday, formatTime } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, addDays, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { listenToSpeech } from '@/lib/speech';
+
+type DigestTab = 'today' | 'next7' | 'next30';
 
 export const DailySummaryModal: React.FC = () => {
   const { showDailySummaryModal, setShowDailySummaryModal } = useNotifications();
-  const { tasks, toggleTaskStatus, rescheduleTask } = useTasks();
+  const { tasks, categories, toggleTaskStatus, rescheduleTask } = useTasks();
+
+  const [activeTab, setActiveTab] = useState<DigestTab>('today');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [isListening, setIsListening] = useState(false);
 
   if (!showDailySummaryModal) return null;
 
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const today = startOfDay(new Date());
+  const todayStr = format(today, 'yyyy-MM-dd');
+  const next7DaysLimit = addDays(today, 7);
+  const next30DaysLimit = addDays(today, 30);
+
+  // Tab tasks partitioning
   const overdueTasks = tasks.filter((t) => t.status === 'pending' && isTaskOverdue(t));
   const todayTasks = tasks.filter((t) => t.status === 'pending' && isTaskDueToday(t));
-  const upcomingTasks = tasks.filter(
-    (t) => t.status === 'pending' && t.due_date && t.due_date > todayStr && !isTaskOverdue(t)
-  );
+
+  const tabFilteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      // 1. Tab criteria
+      if (activeTab === 'today') {
+        const isToday = isTaskDueToday(task);
+        const isOverdue = isTaskOverdue(task);
+        if (!isToday && !isOverdue) return false;
+      } else if (activeTab === 'next7') {
+        if (!task.due_date) return false;
+        const d = startOfDay(parseISO(task.due_date));
+        if (d < today || d > next7DaysLimit) return false;
+      } else if (activeTab === 'next30') {
+        if (!task.due_date) return false;
+        const d = startOfDay(parseISO(task.due_date));
+        if (d < today || d > next30DaysLimit) return false;
+      }
+
+      // 2. Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesTitle = task.title.toLowerCase().includes(q);
+        const matchesDesc = task.description?.toLowerCase().includes(q);
+        const matchesCat = task.category?.name.toLowerCase().includes(q);
+        if (!matchesTitle && !matchesDesc && !matchesCat) return false;
+      }
+
+      // 3. Category filter
+      if (selectedCategory !== 'all') {
+        if (task.category_id !== selectedCategory) return false;
+      }
+
+      // 4. Status filter
+      if (statusFilter !== 'all') {
+        if (task.status !== statusFilter) return false;
+      }
+
+      // 5. Date range filter
+      if (startDate && task.due_date && task.due_date < startDate) return false;
+      if (endDate && task.due_date && task.due_date > endDate) return false;
+
+      return true;
+    });
+  }, [tasks, activeTab, searchQuery, selectedCategory, statusFilter, startDate, endDate, today, next7DaysLimit, next30DaysLimit]);
 
   const handleSnoozeAllOverdue = () => {
     overdueTasks.forEach((t) => {
@@ -35,159 +100,305 @@ export const DailySummaryModal: React.FC = () => {
     });
   };
 
+  const handleVoiceSearch = () => {
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    setIsListening(true);
+    listenToSpeech({
+      onResult: (spokenText) => {
+        setSearchQuery(spokenText);
+      },
+      onError: () => setIsListening(false),
+      onEnd: () => setIsListening(false),
+    });
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('all');
+    setStatusFilter('all');
+    setStartDate('');
+    setEndDate('');
+  };
+
+  const hasActiveFilters = Boolean(searchQuery || selectedCategory !== 'all' || statusFilter !== 'all' || startDate || endDate);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-pop-in">
-        {/* Banner Header */}
-        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 p-6 text-white relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-pop-in">
+        
+        {/* Top Header */}
+        <div className="p-5 sm:p-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white relative">
           <button
             onClick={() => setShowDailySummaryModal(false)}
-            className="absolute top-5 right-5 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            className="absolute top-5 right-5 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
-          <div className="flex items-center gap-2 text-indigo-200 text-xs font-semibold uppercase tracking-wider mb-1">
+          
+          <div className="flex items-center gap-2 text-blue-100 text-xs font-semibold uppercase tracking-wider mb-1">
             <Sparkles className="h-4 w-4 text-amber-300" />
-            <span>Daily Clarity Digest</span>
+            <span>Review Daily Digest</span>
           </div>
-          <h2 className="text-2xl font-extrabold tracking-tight">
-            {format(new Date(), 'EEEE, MMMM d')}
+          
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+            Schedule Overview & Digest
           </h2>
-          <p className="text-xs text-indigo-100 mt-1 max-w-md">
-            Here is your daily snapshot. Stay focused, tackle the highest priorities first, and conquer your day!
+          <p className="text-xs text-blue-100/90 mt-1 max-w-lg leading-relaxed">
+            Review your priorities, search across time horizons, or filter tasks by category and status.
           </p>
 
-          {/* Metric Badges */}
-          <div className="mt-4 flex flex-wrap gap-2 text-xs">
-            <span className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur font-semibold">
-              {todayTasks.length} Due Today
-            </span>
-            <span className={`px-2.5 py-1 rounded-lg font-semibold backdrop-blur ${
-              overdueTasks.length > 0 ? 'bg-rose-500/80 text-white' : 'bg-white/15'
-            }`}>
-              {overdueTasks.length} Overdue
-            </span>
-            <span className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur font-semibold">
-              {upcomingTasks.length} Upcoming
-            </span>
+          {/* 3 CLICKABLE SECTION TABS AT TOP */}
+          <div className="mt-4 grid grid-cols-3 gap-2 bg-white/10 p-1 rounded-2xl backdrop-blur-md">
+            <button
+              type="button"
+              onClick={() => setActiveTab('today')}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'today'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Sun className="h-3.5 w-3.5" />
+              <span>Today</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === 'today' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'}`}>
+                {todayTasks.length + overdueTasks.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('next7')}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'next7'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span>Next 7 Days</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === 'next7' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'}`}>
+                {tasks.filter((t) => t.status === 'pending' && t.due_date && t.due_date >= todayStr && t.due_date <= format(next7DaysLimit, 'yyyy-MM-dd')).length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('next30')}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'next30'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <CalendarRange className="h-3.5 w-3.5" />
+              <span>Next 30 Days</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === 'next30' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'}`}>
+                {tasks.filter((t) => t.status === 'pending' && t.due_date && t.due_date >= todayStr && t.due_date <= format(next30DaysLimit, 'yyyy-MM-dd')).length}
+              </span>
+            </button>
           </div>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Overdue Section */}
-          {overdueTasks.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-rose-500" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                    Needs Immediate Attention ({overdueTasks.length})
-                  </h3>
-                </div>
+        {/* Search & Filter Bar with Mic */}
+        <div className="p-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 space-y-3">
+          {/* Search bar with Mic button */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={isListening ? "Listening... speak now" : "Search in digest by keyword, note, or tag..."}
+                className="w-full text-xs pl-9 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              />
+              {searchQuery && (
                 <button
-                  onClick={handleSnoozeAllOverdue}
-                  className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
                 >
-                  Move all to Today
+                  Clear
                 </button>
-              </div>
+              )}
+            </div>
 
-              <div className="space-y-2">
-                {overdueTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => toggleTaskStatus(task.id)}
-                        className="h-4 w-4 rounded border border-rose-300 dark:border-rose-700 flex items-center justify-center hover:bg-rose-100"
-                      >
-                        {task.status === 'completed' && <Check className="h-3 w-3 text-rose-600" />}
-                      </button>
-                      <span className="font-semibold text-slate-800 dark:text-slate-100">{task.title}</span>
-                    </div>
-                    <span className="text-[11px] text-rose-600 font-medium">
-                      Was due {task.due_date}
-                    </span>
-                  </div>
-                ))}
+            {/* Mic Option */}
+            <button
+              type="button"
+              onClick={handleVoiceSearch}
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
+                isListening
+                  ? 'bg-rose-500 text-white border-rose-500 animate-pulse shadow-md shadow-rose-500/25'
+                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-blue-600'
+              }`}
+              title={isListening ? "Listening... click to stop" : "Search with voice"}
+            >
+              {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+          </div>
+
+          {/* Secondary Filters: Date Range, Category, Status */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {/* Category Dropdown */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
+            >
+              <option value="all">All Categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Status Dropdown */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending Only</option>
+              <option value="completed">Completed Only</option>
+            </select>
+
+            {/* Date Range: From / To */}
+            <div className="flex items-center gap-1 bg-white dark:bg-slate-800 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px]">
+              <span className="text-slate-400 font-medium">From:</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent border-none text-[11px] text-slate-700 dark:text-slate-300 focus:outline-none p-0 cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center gap-1 bg-white dark:bg-slate-800 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px]">
+              <span className="text-slate-400 font-medium">To:</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent border-none text-[11px] text-slate-700 dark:text-slate-300 focus:outline-none p-0 cursor-pointer"
+              />
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="text-xs text-rose-600 hover:underline flex items-center gap-1 ml-auto"
+              >
+                <RotateCcw className="h-3 w-3" /> Reset
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Scrollable Tasks Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          {/* Overdue alert if on Today tab */}
+          {activeTab === 'today' && overdueTasks.length > 0 && (
+            <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                <span className="text-xs font-bold text-rose-800 dark:text-rose-200">
+                  {overdueTasks.length} task{overdueTasks.length > 1 ? 's' : ''} overdue from previous days
+                </span>
               </div>
+              <button
+                type="button"
+                onClick={handleSnoozeAllOverdue}
+                className="text-xs font-bold text-rose-700 dark:text-rose-300 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-rose-200 shadow-xs hover:shadow"
+              >
+                Move all to Today
+              </button>
             </div>
           )}
 
-          {/* Today's Agenda */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar className="h-4 w-4 text-indigo-500" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                Today&apos;s Focus ({todayTasks.length})
-              </h3>
+          {/* Filtered Tasks Listing */}
+          {tabFilteredTasks.length === 0 ? (
+            <div className="text-center py-12 space-y-2 text-slate-400">
+              <CheckCircle2 className="h-10 w-10 mx-auto opacity-30 text-blue-500" />
+              <p className="text-xs font-medium">
+                {hasActiveFilters ? 'No tasks match your search and filter criteria.' : 'No tasks scheduled in this section.'}
+              </p>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="text-xs font-semibold text-blue-600 hover:underline"
+                >
+                  Clear all filters
+                </button>
+              )}
             </div>
+          ) : (
+            <div className="space-y-2">
+              {tabFilteredTasks.map((task) => {
+                const isCompleted = task.status === 'completed';
+                const dueInfo = formatDueLabel(task.due_date, task.due_time);
 
-            {todayTasks.length === 0 ? (
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-center text-xs text-slate-400">
-                No tasks scheduled for today yet. Great job or add a new goal!
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {todayTasks.map((task) => (
+                return (
                   <div
                     key={task.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs"
+                    className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                      isCompleted
+                        ? 'bg-slate-50 dark:bg-slate-900 border-slate-200/60 opacity-60'
+                        : 'bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:border-blue-300'
+                    }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Checkbox */}
                       <button
+                        type="button"
                         onClick={() => toggleTaskStatus(task.id)}
-                        className="h-4 w-4 rounded border border-slate-300 dark:border-slate-600 flex items-center justify-center hover:bg-indigo-50"
+                        className={`h-5 w-5 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
+                          isCompleted
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : 'border-slate-300 hover:border-emerald-500'
+                        }`}
                       >
-                        {task.status === 'completed' && <Check className="h-3 w-3 text-indigo-600" />}
+                        {isCompleted && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                       </button>
-                      <span className="font-semibold text-slate-800 dark:text-slate-100">{task.title}</span>
+
+                      <div className="min-w-0">
+                        <div className={`text-xs font-bold truncate ${isCompleted ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}>
+                          {task.title}
+                        </div>
+                        <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
+                          {task.due_date && <span>{dueInfo.text}</span>}
+                          {task.category && <span>• {task.category.name}</span>}
+                        </div>
+                      </div>
                     </div>
-                    {task.due_time && (
-                      <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatTime(task.due_time)}
-                      </span>
-                    )}
+
+                    {/* Priority badge */}
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                      {task.priority}
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Upcoming Snapshot */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Clock className="h-4 w-4 text-sky-500" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                Coming Up This Week ({upcomingTasks.slice(0, 4).length})
-              </h3>
+                );
+              })}
             </div>
-
-            <div className="space-y-2">
-              {upcomingTasks.slice(0, 4).map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-800 text-xs"
-                >
-                  <span className="text-slate-700 dark:text-slate-300">{task.title}</span>
-                  <span className="text-[11px] text-slate-400">{task.due_date}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+        {/* Modal Footer */}
+        <div className="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 text-center">
           <button
+            type="button"
             onClick={() => setShowDailySummaryModal(false)}
-            className="px-5 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm transition-all"
+            className="px-5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            Start My Day
+            Close Digest
           </button>
         </div>
       </div>

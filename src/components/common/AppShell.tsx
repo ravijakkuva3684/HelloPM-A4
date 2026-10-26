@@ -5,8 +5,10 @@ import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { DailySummaryModal } from '@/components/tasks/DailySummaryModal';
 import { CategoryModal } from '@/components/categories/CategoryModal';
-import { QuickTaskInput } from '@/components/tasks/QuickTaskInput';
-import { X, Sun, Calendar, Inbox, CheckCircle2, Plus } from 'lucide-react';
+import { AddNewModal } from '@/components/common/AddNewModal';
+import { AiPlanningModal } from '@/components/common/AiPlanningModal';
+import { VoiceAssistantModal } from '@/components/common/VoiceAssistantModal';
+import { X, Sun, Calendar, Inbox, CheckCircle2, Plus, Mic, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTasks } from '@/context/TaskContext';
@@ -18,8 +20,10 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const { setActiveFilter, setSelectedCategory } = useTasks();
   const { isLoggedIn, hasCompletedOnboarding, loading } = useAuth();
 
-  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [showAddNewModal, setShowAddNewModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [showAiPlanModal, setShowAiPlanModal] = useState(false);
 
   // Authentication & Onboarding Guards
   useEffect(() => {
@@ -45,8 +49,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   // Loading Screen
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25 mb-3 animate-pulse">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-950">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/25 mb-3 animate-pulse">
           <CheckCircle2 className="h-6 w-6" />
         </div>
         <p className="text-xs font-bold text-slate-500 dark:text-slate-400 animate-pulse">
@@ -75,86 +79,100 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-screen flex-col overflow-hidden bg-white dark:bg-slate-950">
       {/* Top Navigation */}
-      <Navbar onOpenQuickAdd={() => setShowQuickAddModal(true)} />
+      <Navbar 
+        onOpenQuickAdd={() => setShowAddNewModal(true)} 
+        onOpenVoice={() => setShowVoiceModal(true)}
+        onOpenAiPlanner={() => setShowAiPlanModal(true)}
+      />
 
       {/* Main Workspace Body */}
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
         <Sidebar onOpenNewCategory={() => setShowCategoryModal(true)} />
 
-        {/* Dynamic Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        {/* Dynamic Content Area (40%+ Free White Space) */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 bg-white dark:bg-slate-950">
           {children}
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden flex items-center justify-around border-t border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur py-2 px-4 z-40">
+      {/* Mobile Bottom Navigation Bar with Open Mic & Add New */}
+      <div className="md:hidden flex items-center justify-around border-t border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur py-2 px-3 z-40">
         <Link
           href="/"
           onClick={() => {
             setActiveFilter('today');
             setSelectedCategory(null);
           }}
-          className="flex flex-col items-center gap-1 text-[11px] text-slate-600 dark:text-slate-400 hover:text-indigo-600"
+          className="flex flex-col items-center gap-1 text-[11px] text-slate-600 dark:text-slate-400 hover:text-blue-600"
         >
           <Sun className="h-4 w-4" />
           <span>My Day</span>
         </Link>
+
         <Link
           href="/"
           onClick={() => {
             setActiveFilter('all');
             setSelectedCategory(null);
           }}
-          className="flex flex-col items-center gap-1 text-[11px] text-slate-600 dark:text-slate-400 hover:text-indigo-600"
+          className="flex flex-col items-center gap-1 text-[11px] text-slate-600 dark:text-slate-400 hover:text-blue-600"
         >
           <Inbox className="h-4 w-4" />
           <span>Tasks</span>
         </Link>
+
+        {/* Center: Add New Action Button */}
         <button
-          onClick={() => setShowQuickAddModal(true)}
-          className="flex h-9 w-9 -mt-3 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
+          type="button"
+          onClick={() => setShowAddNewModal(true)}
+          className="flex h-11 w-11 -mt-4 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/35 active:scale-95 transition-transform cursor-pointer"
+          title="Add New (Task or Category)"
         >
-          <Plus className="h-5 w-5" />
+          <Plus className="h-6 w-6 stroke-[2.5]" />
         </button>
+
+        {/* Open Mic Voice Assistant */}
+        <button
+          type="button"
+          onClick={() => setShowVoiceModal(true)}
+          className="flex flex-col items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 font-semibold"
+          title="Open Mic - Speak to ask or check updates"
+        >
+          <div className="p-1 rounded-full bg-blue-50 dark:bg-blue-950">
+            <Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          </div>
+          <span>Open Mic</span>
+        </button>
+
         <Link
           href="/calendar"
-          className="flex flex-col items-center gap-1 text-[11px] text-slate-600 dark:text-slate-400 hover:text-indigo-600"
+          className="flex flex-col items-center gap-1 text-[11px] text-slate-600 dark:text-slate-400 hover:text-blue-600"
         >
           <Calendar className="h-4 w-4" />
           <span>Calendar</span>
         </Link>
-        <button
-          onClick={() => setShowCategoryModal(true)}
-          className="flex flex-col items-center gap-1 text-[11px] text-slate-600 dark:text-slate-400 hover:text-indigo-600"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Category</span>
-        </button>
       </div>
 
-      {/* Floating Quick Add Modal */}
-      {showQuickAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl animate-pop-in space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Quick Task Entry
-              </h3>
-              <button
-                onClick={() => setShowQuickAddModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <QuickTaskInput onSuccess={() => setShowQuickAddModal(false)} />
-          </div>
-        </div>
-      )}
+      {/* Global Add New Modal (Pop-up with 2 options: Add Task / Add Category) */}
+      <AddNewModal
+        isOpen={showAddNewModal}
+        onClose={() => setShowAddNewModal(false)}
+      />
+
+      {/* Global AI Daily Planning Assistant Modal */}
+      <AiPlanningModal
+        isOpen={showAiPlanModal}
+        onClose={() => setShowAiPlanModal(false)}
+      />
+
+      {/* Global Voice Assistant & Open Mic Modal */}
+      <VoiceAssistantModal
+        isOpen={showVoiceModal}
+        onClose={() => setShowVoiceModal(false)}
+      />
 
       {/* Global Category Modal */}
       <CategoryModal

@@ -12,7 +12,8 @@ import {
   MoreVertical,
   Bell,
   Sun,
-  Moon
+  Moon,
+  Mic
 } from 'lucide-react';
 import { Task, SnoozeOption } from '@/types';
 import { useTasks } from '@/context/TaskContext';
@@ -65,18 +66,23 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
       }`}
     >
       <div className="flex items-start gap-3.5">
-        {/* Completion Checkbox */}
+        {/* Prominent, Highly-Clickable Completion Checkbox */}
         <button
           type="button"
           onClick={handleToggle}
-          className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-lg border transition-all ${
+          className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-xl border-2 transition-all cursor-pointer ${
             isCompleted
-              ? 'bg-emerald-500 border-emerald-500 text-white'
-              : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:border-indigo-400'
+              ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm ring-2 ring-emerald-500/20'
+              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-emerald-500 hover:bg-emerald-50/60 dark:hover:border-emerald-400 group-hover:scale-105'
           }`}
-          title={isCompleted ? 'Mark as pending' : 'Mark as completed'}
+          title={isCompleted ? 'Mark as pending' : 'Click to complete task'}
+          aria-label={isCompleted ? 'Mark as pending' : 'Click to complete task'}
         >
-          {isCompleted && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+          {isCompleted ? (
+            <Check className="h-4 w-4 stroke-[3]" />
+          ) : (
+            <Check className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600 opacity-0 hover:opacity-100 transition-opacity stroke-[2.5]" />
+          )}
         </button>
 
         {/* Content Details */}

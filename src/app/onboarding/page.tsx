@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { 
@@ -17,10 +17,8 @@ import {
   Download, 
   Check, 
   FolderCheck,
-  ShieldCheck,
   Zap,
   Flame,
-  Volume2,
   CalendarDays,
   CheckCircle
 } from 'lucide-react';
@@ -32,33 +30,35 @@ export default function OnboardingPage() {
   const { profile, completeOnboarding } = useAuth();
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Demo state for interactive preview on Slide 1
+  // Demo task toggle state for interactive preview
   const [demoTaskCompleted, setDemoTaskCompleted] = useState(false);
 
-  // Slides definition (4 informative screens)
+  // Touch coordinates for swipe gesture
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+
   const slides = [
     {
       id: 1,
       badge: '01 / DAILY CLARITY',
       title: 'Master Your Day with Intelligent Task Grouping',
-      subtitle: 'Eliminate daily overwhelm. Remindly structures your responsibilities into focused sections so you always know what matters right now.',
+      subtitle: 'Eliminate daily overwhelm. Remindly organizes your commitments into Overdue, Due Today, and Upcoming sections.',
       icon: Sun,
-      color: 'from-amber-500 to-orange-500',
-      bgColor: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40',
+      color: 'from-blue-600 to-indigo-600',
       features: [
         {
           title: 'Smart "My Day" Sections',
-          desc: 'Tasks are automatically partitioned into Overdue (urgent alerts), Due Today (timed schedule), and Upcoming (next 7 days).',
+          desc: 'Tasks auto-sort into Overdue, Due Today, and Upcoming (next 7 days).',
           icon: Zap,
         },
         {
-          title: 'Priority Flags (Low to Urgent)',
-          desc: 'Color-coded visual flags keep high-impact deadlines at the top of your visual field.',
+          title: 'Priority Matrix (Low to Urgent)',
+          desc: 'Visual color tags prioritize high-impact deadlines first.',
           icon: Flame,
         },
         {
-          title: 'Instant Dopamine & Celebrations',
-          desc: 'Completing tasks triggers synthesized Web Audio chimes and celebratory confetti bursts.',
+          title: 'Instant Accomplishment',
+          desc: 'Synthesized audio chimes & confetti feedback when tasks complete.',
           icon: Sparkles,
         },
       ],
@@ -68,24 +68,23 @@ export default function OnboardingPage() {
       id: 2,
       badge: '02 / SMART SNOOZING',
       title: 'Intelligent Snoozing & Daily Morning Digest',
-      subtitle: 'Life happens. Reschedule effortlessly with one-click presets and wake up to a curated morning summary every day.',
+      subtitle: 'Reschedule effortlessly with 1-click presets and wake up to a curated morning summary every day.',
       icon: Clock,
       color: 'from-indigo-600 to-violet-600',
-      bgColor: 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-900/40',
       features: [
         {
-          title: 'Quick 1-Click Snooze Presets',
-          desc: 'Snooze tasks for +1 Hour, +3 Hours, This Evening (7 PM), Tomorrow Morning (9 AM), or Next Week in a single tap.',
+          title: 'Quick 1-Click Snooze',
+          desc: 'Snooze for +1h, +3h, Tonight (7 PM), Tomorrow Morning (9 AM), or Next Week.',
           icon: Clock,
         },
         {
           title: 'Morning Digest at 8:00 AM',
-          desc: 'Start your day with a focused summary modal and a 1-click "Move all overdue to Today" action.',
+          desc: 'A focused morning overview with a 1-click "Move all overdue to Today".',
           icon: Sparkles,
         },
         {
-          title: 'Quiet Hours & Anti-Duplicate System',
-          desc: 'Customize quiet hours (e.g. 10 PM - 7 AM) to prevent alerts while sleeping, with built-in spam suppression.',
+          title: 'Quiet Hours & Anti-Spam',
+          desc: 'Mute alerts during sleep hours (10 PM - 7 AM) with spam suppression.',
           icon: Bell,
         },
       ],
@@ -95,24 +94,23 @@ export default function OnboardingPage() {
       id: 3,
       badge: '03 / CUSTOM WORKSPACES',
       title: 'Organize Life with Custom Categories & Icons',
-      subtitle: 'Tailor Remindly to your exact routine with custom categories, 25+ Lucide icons, and modern color palettes.',
+      subtitle: 'Structure responsibilities across Work, Health, Reading, and Finances with 25+ Lucide icons and vibrant color palettes.',
       icon: Tag,
       color: 'from-emerald-500 to-teal-600',
-      bgColor: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40',
       features: [
         {
-          title: '25+ Expressive Lucide Icons',
-          desc: 'Assign distinctive icons for Work, Health, Reading, Finances, Family, and Side Hustles.',
+          title: '25+ Lucide Icons',
+          desc: 'Curated icons for Work, Fitness, Finances, Education, and Personal.',
           icon: Layers,
         },
         {
-          title: '10 Vibrant Color Palettes',
-          desc: 'Color-code your categories to visually scan your day and immediately spot what requires your energy.',
+          title: 'Vibrant Color Palettes',
+          desc: 'Color-code tags to immediately scan and spot priorities.',
           icon: Tag,
         },
         {
-          title: 'Instant 1-Click Filtering',
-          desc: 'Filter your dashboard by category in one tap to focus strictly on work tasks, fitness goals, or personal chores.',
+          title: 'Instant Sidebar Filtering',
+          desc: 'Filter by category in one tap to focus strictly on what matters.',
           icon: FolderCheck,
         },
       ],
@@ -121,25 +119,24 @@ export default function OnboardingPage() {
     {
       id: 4,
       badge: '04 / TIME HORIZONS & SYNC',
-      title: 'Monthly Calendar & Universal Google Calendar Export',
-      subtitle: 'Zoom out to view your monthly distribution and export your tasks directly to Google Calendar, Apple Calendar, and Outlook.',
+      title: 'Monthly Calendar & Google Calendar Export',
+      subtitle: 'Zoom out to view your workload distribution and export directly to Google Calendar, Apple Calendar, and Outlook.',
       icon: Calendar,
-      color: 'from-purple-600 to-pink-600',
-      bgColor: 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900/40',
+      color: 'from-blue-600 to-purple-600',
       features: [
         {
           title: 'Interactive Monthly Grid',
-          desc: 'Inspect deadline clusters and task distribution across all weeks of the month.',
+          desc: 'Inspect deadline clusters and task distribution across the month.',
           icon: CalendarDays,
         },
         {
-          title: 'Day Drawer Details',
-          desc: 'Click any date to see exact scheduled responsibilities or add tasks directly into that day.',
+          title: 'Day Drawer Agenda',
+          desc: 'Click any date to see exact schedules or add tasks directly.',
           icon: CheckCircle,
         },
         {
           title: 'RFC-5545 iCalendar (.ics) Export',
-          desc: 'Download universal calendar feeds or sync with Google Calendar and external scheduling apps.',
+          desc: '1-click export compatible with Google Calendar, Apple, & Outlook.',
           icon: Download,
         },
       ],
@@ -151,7 +148,7 @@ export default function OnboardingPage() {
 
   const handleNext = () => {
     if (currentSlide < slides.length - 1) {
-      setCurrentSlide(currentSlide + 1);
+      setCurrentSlide((prev) => prev + 1);
     } else {
       handleFinish();
     }
@@ -159,7 +156,7 @@ export default function OnboardingPage() {
 
   const handlePrevious = () => {
     if (currentSlide > 0) {
-      setCurrentSlide(currentSlide - 1);
+      setCurrentSlide((prev) => prev - 1);
     }
   };
 
@@ -171,11 +168,35 @@ export default function OnboardingPage() {
         spread: 70,
         origin: { y: 0.6 },
       });
-    } catch {
-      // Audio or confetti fallback
-    }
+    } catch {}
     completeOnboarding();
     router.push('/');
+  };
+
+  // Touch Swipe Handlers for mobile gestures
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    const distance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 45;
+
+    if (distance > minSwipeDistance) {
+      // Swiped Left -> Go Next
+      handleNext();
+    } else if (distance < -minSwipeDistance) {
+      // Swiped Right -> Go Previous
+      handlePrevious();
+    }
+
+    touchStartX.current = null;
+    touchEndX.current = null;
   };
 
   const handleDemoToggle = () => {
@@ -194,342 +215,220 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100/60 to-indigo-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 flex flex-col justify-between p-4 sm:p-8">
-      {/* Top Header Bar */}
-      <header className="max-w-5xl w-full mx-auto flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-            <CheckCircle2 className="h-6 w-6" />
+    <div 
+      className="h-[100dvh] max-h-[100dvh] overflow-hidden bg-white dark:bg-slate-950 flex flex-col justify-between select-none"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* 1. COMPACT TOP HEADER BAR - DOES NOT BLOCK THE ROW */}
+      <header className="px-4 py-3 sm:px-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur z-20 flex-shrink-0">
+        {/* Top Left: Remindly Icon + Text */}
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-sm">
+            <CheckCircle2 className="h-4 w-4" />
           </div>
-          <div>
-            <div className="font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              <span>Remindly</span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                Product Tour
-              </span>
-            </div>
-            <div className="text-xs text-slate-400">
-              Welcome, {profile?.full_name || 'Member'}!
-            </div>
-          </div>
+          <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight">
+            Remindly
+          </span>
+          <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+            Tour
+          </span>
         </div>
 
-        {/* Stepper counter & skip */}
-        <div className="flex items-center gap-4">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-            Screen <span className="text-indigo-600 dark:text-indigo-400">{currentSlide + 1}</span> of {slides.length}
+        {/* Top Right: Step Badge & Skip */}
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            {currentSlide + 1} / {slides.length}
           </span>
           <button
+            type="button"
             onClick={handleFinish}
-            className="text-xs font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            className="text-xs font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
           >
-            Skip to Home
+            Skip
           </button>
         </div>
       </header>
 
-      {/* Main Slide Card Container */}
-      <main className="max-w-5xl w-full mx-auto my-auto py-8">
-        {/* Progress Bar */}
-        <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mb-8 overflow-hidden">
-          <div
-            className="bg-gradient-to-r from-indigo-600 to-violet-600 h-full rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${((currentSlide + 1) / slides.length) * 100}%` }}
-          />
-        </div>
+      {/* Progress Line */}
+      <div className="w-full bg-slate-100 dark:bg-slate-800 h-1 flex-shrink-0">
+        <div
+          className="bg-blue-600 h-full transition-all duration-300 ease-out"
+          style={{ width: `${((currentSlide + 1) / slides.length) * 100}%` }}
+        />
+      </div>
 
-        {/* Slide Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-10 transition-all duration-300 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          
-          {/* Left Column: Information & Key Highlights */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="space-y-2">
-              <span className="text-[11px] font-black tracking-wider uppercase px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/40">
+      {/* 2. MAIN SLIDE CONTENT - GUARANTEED TO FIT ON MOBILE SCREEN */}
+      <main className="flex-1 overflow-y-auto px-4 py-3 sm:py-5 max-w-2xl mx-auto w-full flex flex-col justify-center">
+        <div className="space-y-4">
+          {/* Badge & Title */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
                 {slide.badge}
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
-                {slide.title}
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                {slide.subtitle}
-              </p>
+              <span className="text-[10px] text-slate-400 italic md:hidden">
+                Swipe left/right
+              </span>
             </div>
-
-            {/* Feature Bullet Cards */}
-            <div className="space-y-3">
-              {slide.features.map((feat, idx) => {
-                const IconComponent = feat.icon;
-                return (
-                  <div
-                    key={idx}
-                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/50 flex items-start gap-3.5 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors"
-                  >
-                    <div className="p-2 rounded-xl bg-white dark:bg-slate-700 shadow-xs text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5">
-                      <IconComponent className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">
-                        {feat.title}
-                      </h3>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5">
-                        {feat.desc}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <h2 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+              {slide.title}
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug line-clamp-2">
+              {slide.subtitle}
+            </p>
           </div>
 
-          {/* Right Column: Visual Interactive Demonstrations */}
-          <div className="lg:col-span-5">
-            <div className="rounded-2xl p-5 border shadow-inner bg-gradient-to-b from-slate-50 to-indigo-50/20 dark:from-slate-800/50 dark:to-slate-900 border-slate-200 dark:border-slate-700/70 space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-700/60 text-[11px] font-bold text-slate-400">
-                <span>INTERACTIVE PREVIEW</span>
-                <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
-                  <Sparkles className="h-3 w-3" /> Live Feature
+          {/* 3 Key Feature Bullets */}
+          <div className="space-y-2">
+            {slide.features.map((feat, idx) => {
+              const IconComp = feat.icon;
+              return (
+                <div
+                  key={idx}
+                  className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-start gap-2.5"
+                >
+                  <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5">
+                    <IconComp className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                      {feat.title}
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                      {feat.desc}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Compact Interactive Demonstration Preview */}
+          <div className="rounded-xl p-3 bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 text-xs">
+            {/* Slide 1 Demo */}
+            {slide.interactiveType === 'task_completion' && (
+              <div 
+                onClick={handleDemoToggle}
+                className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                  demoTaskCompleted 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 text-emerald-800 dark:text-emerald-300' 
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-xs'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className={`h-5 w-5 rounded-md flex items-center justify-center border ${
+                    demoTaskCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 text-transparent'
+                  }`}>
+                    <Check className="h-3 w-3" />
+                  </div>
+                  <div>
+                    <span className={`text-xs font-semibold ${demoTaskCompleted ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}>
+                      Review team roadmap & deliverables
+                    </span>
+                    <div className="text-[10px] text-slate-400">Due Today • Work</div>
+                  </div>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300">
+                  High
                 </span>
               </div>
-
-              {/* SLIDE 1 INTERACTIVE PREVIEW: My Day Task Card */}
-              {slide.interactiveType === 'task_completion' && (
-                <div className="space-y-3">
-                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                    <span>Try completing a task:</span>
-                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">Click checkmark</span>
-                  </div>
-
-                  <div 
-                    onClick={handleDemoToggle}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                      demoTaskCompleted 
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 shadow-sm'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm hover:border-indigo-400'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`h-6 w-6 rounded-lg flex items-center justify-center border transition-colors ${
-                        demoTaskCompleted 
-                          ? 'bg-emerald-500 border-emerald-500 text-white' 
-                          : 'border-slate-300 dark:border-slate-600 text-transparent'
-                      }`}>
-                        <Check className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <div className={`text-xs font-bold ${demoTaskCompleted ? 'line-through text-slate-400' : 'text-slate-900 dark:text-white'}`}>
-                          Review team roadmap & deliverables
-                        </div>
-                        <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
-                          <span className="text-rose-500 font-semibold">Today • 10:30 AM</span>
-                          <span>•</span>
-                          <span className="text-indigo-600 dark:text-indigo-400 font-medium">Work</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                      High Priority
-                    </span>
-                  </div>
-
-                  {demoTaskCompleted && (
-                    <div className="p-2.5 rounded-xl bg-emerald-100/60 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold text-center animate-fade-in flex items-center justify-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                      <span>Nice job! Audio chime + confetti fired.</span>
-                    </div>
-                  )}
-
-                  <div className="p-3 rounded-xl bg-white/60 dark:bg-slate-800/60 text-[11px] text-slate-500">
-                    💡 Remindly automatically groups Overdue items with warning badges and lets you reschedule them in bulk.
-                  </div>
-                </div>
-              )}
-
-              {/* SLIDE 2 INTERACTIVE PREVIEW: Smart Snooze Presets */}
-              {slide.interactiveType === 'snooze_preview' && (
-                <div className="space-y-3">
-                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Quick Snooze Presets:
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 hover:border-indigo-400 transition-colors">
-                      <Clock className="h-4 w-4 text-indigo-500" />
-                      <span>+1 Hour</span>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 hover:border-indigo-400 transition-colors">
-                      <Clock className="h-4 w-4 text-indigo-500" />
-                      <span>+3 Hours</span>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 hover:border-indigo-400 transition-colors">
-                      <Sun className="h-4 w-4 text-amber-500" />
-                      <span>Tonight (7 PM)</span>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 hover:border-indigo-400 transition-colors">
-                      <Sparkles className="h-4 w-4 text-indigo-500" />
-                      <span>Tomorrow (9 AM)</span>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
-                    <div className="font-bold text-indigo-700 dark:text-indigo-300">
-                      🌅 Daily Morning Digest
-                    </div>
-                    <div>
-                      Every morning at 8:00 AM, a focused digest modal greets you with today’s priorities and any rollover tasks.
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* SLIDE 3 INTERACTIVE PREVIEW: Custom Categories */}
-              {slide.interactiveType === 'category_showcase' && (
-                <div className="space-y-2.5">
-                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Category Palette Preview:
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2.5">
-                        <span className="h-3 w-3 rounded-full bg-indigo-500" />
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">💼 Work & Projects</span>
-                      </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold">
-                        8 tasks
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2.5">
-                        <span className="h-3 w-3 rounded-full bg-emerald-500" />
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">🏃 Health & Habits</span>
-                      </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold">
-                        4 tasks
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2.5">
-                        <span className="h-3 w-3 rounded-full bg-amber-500" />
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">📚 Learning & Books</span>
-                      </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold">
-                        3 tasks
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-800/70 text-[11px] text-slate-500">
-                    🎨 Create unlimited categories with custom hex colors and icons in the Categories tab.
-                  </div>
-                </div>
-              )}
-
-              {/* SLIDE 4 INTERACTIVE PREVIEW: Calendar & Export */}
-              {slide.interactiveType === 'calendar_preview' && (
-                <div className="space-y-3">
-                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                    <span>Monthly Calendar Grid</span>
-                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">RFC-5545</span>
-                  </div>
-
-                  {/* Mini Calendar Mock */}
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 pb-1">
-                    <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                    {[12, 13, 14, 15, 16, 17, 18].map((d, i) => (
-                      <div
-                        key={i}
-                        className={`p-1.5 rounded-lg border font-medium ${
-                          d === 15
-                            ? 'bg-indigo-600 text-white font-bold border-indigo-600 shadow-xs'
-                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                        }`}
-                      >
-                        {d}
-                        {d === 15 && <div className="h-1 w-1 bg-amber-300 rounded-full mx-auto mt-0.5" />}
-                        {d === 16 && <div className="h-1 w-1 bg-emerald-500 rounded-full mx-auto mt-0.5" />}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Export Button Mock */}
-                  <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-center space-y-1.5">
-                    <div className="text-xs font-bold text-indigo-700 dark:text-indigo-300 flex items-center justify-center gap-1.5">
-                      <Download className="h-3.5 w-3.5" />
-                      <span>One-Click .ics Calendar Export</span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Import directly into Google Calendar, Outlook, and Apple Calendar.
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Stepper Dots & Navigation Buttons */}
-        <div className="mt-8 flex items-center justify-between">
-          {/* Stepper Dots */}
-          <div className="flex items-center gap-2">
-            {slides.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentSlide(i)}
-                className={`h-2.5 rounded-full transition-all cursor-pointer ${
-                  i === currentSlide
-                    ? 'w-8 bg-indigo-600'
-                    : i < currentSlide
-                    ? 'w-2.5 bg-indigo-400'
-                    : 'w-2.5 bg-slate-300 dark:bg-slate-700'
-                }`}
-                title={`Go to Screen ${i + 1}`}
-              />
-            ))}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3">
-            {currentSlide > 0 && (
-              <button
-                type="button"
-                onClick={handlePrevious}
-                className="py-2.5 px-4 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-2xl border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Previous</span>
-              </button>
             )}
 
-            {currentSlide < slides.length - 1 ? (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="py-2.5 px-5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-lg shadow-indigo-600/25 transition-all flex items-center gap-1.5 group cursor-pointer"
-              >
-                <span>Next Screen</span>
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleFinish}
-                className="py-3 px-6 text-xs font-black text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-2xl shadow-xl shadow-indigo-600/30 transition-all flex items-center gap-2 group cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <span>Go to Home Screen & Start Using Remindly</span>
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </button>
+            {/* Slide 2 Demo */}
+            {slide.interactiveType === 'snooze_preview' && (
+              <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-semibold text-slate-700 dark:text-slate-300">
+                <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  +1 Hour
+                </div>
+                <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  Tonight (7 PM)
+                </div>
+                <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-blue-600 font-bold">
+                  Tomorrow 9 AM
+                </div>
+              </div>
+            )}
+
+            {/* Slide 3 Demo */}
+            {slide.interactiveType === 'category_showcase' && (
+              <div className="flex items-center justify-around text-[10px] font-semibold">
+                <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">💼 Work (8)</span>
+                <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">🏃 Health (4)</span>
+                <span className="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300">📚 Learning (3)</span>
+              </div>
+            )}
+
+            {/* Slide 4 Demo */}
+            {slide.interactiveType === 'calendar_preview' && (
+              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Calendar className="h-3.5 w-3.5 text-blue-500" /> Monthly Grid
+                </span>
+                <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                  <Download className="h-3 w-3" /> .ics Google Sync
+                </span>
+              </div>
             )}
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="max-w-5xl w-full mx-auto text-center text-[11px] text-slate-400 pt-4 border-t border-slate-200/60 dark:border-slate-800">
-        Remindly Workspace • Fast, focused task management
+      {/* 3. FIXED BOTTOM NAVIGATION BAR - ALWAYS VISIBLE */}
+      <footer className="px-4 py-3 sm:px-6 border-t border-slate-100 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur flex items-center justify-between flex-shrink-0 z-20">
+        {/* Stepper Dots */}
+        <div className="flex items-center gap-1.5">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setCurrentSlide(i)}
+              className={`h-2 rounded-full transition-all ${
+                i === currentSlide
+                  ? 'w-6 bg-blue-600'
+                  : i < currentSlide
+                  ? 'w-2 bg-blue-400'
+                  : 'w-2 bg-slate-200 dark:bg-slate-700'
+              }`}
+              title={`Screen ${i + 1}`}
+            />
+          ))}
+        </div>
+
+        {/* Buttons */}
+        <div className="flex items-center gap-2">
+          {currentSlide > 0 && (
+            <button
+              type="button"
+              onClick={handlePrevious}
+              className="py-2 px-3 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors flex items-center gap-1"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back</span>
+            </button>
+          )}
+
+          {currentSlide < slides.length - 1 ? (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="py-2 px-4 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Next</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleFinish}
+              className="py-2.5 px-4 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer animate-pulse"
+            >
+              <span>Go to Home Screen</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </footer>
     </div>
   );

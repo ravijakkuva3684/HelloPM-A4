@@ -16,7 +16,8 @@ import {
   LogOut,
   Sliders,
   Calendar as CalendarIcon,
-  CheckCircle2
+  CheckCircle2,
+  Mic
 } from 'lucide-react';
 import { useNotifications } from '@/context/NotificationContext';
 import { useTasks } from '@/context/TaskContext';
@@ -25,9 +26,11 @@ import { formatTime } from '@/lib/utils';
 
 interface NavbarProps {
   onOpenQuickAdd: () => void;
+  onOpenVoice?: () => void;
+  onOpenAiPlanner?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd, onOpenVoice, onOpenAiPlanner }) => {
   const router = useRouter();
   const { searchQuery, setSearchQuery } = useTasks();
   const { 
@@ -110,13 +113,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd }) => {
           <span>Daily Digest</span>
         </button>
 
-        {/* Quick Add Task */}
+        {/* Open Mic Voice Assistant */}
+        {onOpenVoice && (
+          <button
+            onClick={onOpenVoice}
+            className="p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 dark:text-slate-300 dark:hover:text-blue-400 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Open Voice Assistant & Mic"
+          >
+            <Mic className="h-4 w-4" />
+          </button>
+        )}
+
+        {/* Add New Button */}
         <button
           onClick={onOpenQuickAdd}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm shadow-indigo-600/30 transition-all hover:shadow active:scale-95"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm shadow-blue-600/20 transition-all hover:shadow active:scale-95 cursor-pointer"
         >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Add Task</span>
+          <span>Add New</span>
         </button>
 
         {/* Notifications Popover */}

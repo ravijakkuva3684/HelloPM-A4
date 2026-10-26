@@ -77,6 +77,8 @@ export function formatTime(timeStr: string | null): string {
 
 /**
  * Check if a task is currently overdue
+ * A task is ONLY overdue after the date has changed to the next day (dueDate < today).
+ * Tasks scheduled for today remain due today even if the scheduled time has passed.
  */
 export function isTaskOverdue(task: Task): boolean {
   if (task.status === 'completed' || !task.due_date) return false;
@@ -89,16 +91,8 @@ export function isTaskOverdue(task: Task): boolean {
   const today = startOfDay(new Date());
   const dueDate = startOfDay(parseISO(task.due_date));
   
-  if (dueDate < today) return true;
-  
-  // If due today with specific time and time has passed
-  if (isSameDay(dueDate, today) && task.due_time) {
-    const [hours, minutes] = task.due_time.split(':').map(Number);
-    const dueDateTime = setMinutes(setHours(dueDate, hours), minutes);
-    return isPast(dueDateTime);
-  }
-
-  return false;
+  // Only overdue once the day has strictly passed
+  return dueDate < today;
 }
 
 /**

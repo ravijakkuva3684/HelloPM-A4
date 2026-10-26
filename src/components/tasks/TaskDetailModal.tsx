@@ -10,14 +10,17 @@ import {
   Repeat, 
   AlertCircle, 
   Check, 
-  Moon,
-  CheckCircle2,
-  Bell
+  Moon, 
+  CheckCircle2, 
+  Bell,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { Task, PriorityLevel, RecurrencePattern } from '@/types';
 import { useTasks } from '@/context/TaskContext';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
 import { SnoozeDropdown } from './SnoozeDropdown';
+import { listenToSpeech } from '@/lib/speech';
 
 interface TaskDetailModalProps {
   task: Task | null;
@@ -38,6 +41,22 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
   const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>('daily');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [reminderMinutes, setReminderMinutes] = useState(0);
+  const [isListeningTitle, setIsListeningTitle] = useState(false);
+
+  const handleVoiceTitle = () => {
+    if (isListeningTitle) {
+      setIsListeningTitle(false);
+      return;
+    }
+    setIsListeningTitle(true);
+    listenToSpeech({
+      onResult: (spokenText) => {
+        setTitle(spokenText);
+      },
+      onError: () => setIsListeningTitle(false),
+      onEnd: () => setIsListeningTitle(false),
+    });
+  };
 
   useEffect(() => {
     if (task) {
@@ -129,13 +148,29 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
             <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
               Title
             </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              className="w-full text-base font-semibold px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                className={`w-full text-base font-semibold pl-3 pr-10 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                  isListeningTitle ? 'border-rose-500 ring-2 ring-rose-500/20 animate-pulse' : 'border-slate-200 dark:border-slate-700'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={handleVoiceTitle}
+                className={`absolute right-2 p-1.5 rounded-lg transition-colors ${
+                  isListeningTitle
+                    ? 'bg-rose-500 text-white animate-pulse'
+                    : 'text-slate-400 hover:text-indigo-600'
+                }`}
+                title="Speak task title"
+              >
+                {isListeningTitle ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <div>

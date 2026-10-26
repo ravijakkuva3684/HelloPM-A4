@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Check, Tag } from 'lucide-react';
+import { X, Trash2, Check, Tag, Mic, MicOff } from 'lucide-react';
 import { Category } from '@/types';
 import { useTasks } from '@/context/TaskContext';
 import { CategoryIcon, AVAILABLE_ICON_NAMES, PRESET_COLORS } from './CategoryIcon';
+import { listenToSpeech } from '@/lib/speech';
 
 interface CategoryModalProps {
   category: Category | null;
@@ -19,6 +20,22 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({ category, isOpen, 
   const [color, setColor] = useState(PRESET_COLORS[0]);
   const [icon, setIcon] = useState('Tag');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  const handleVoiceInput = () => {
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+    setIsListening(true);
+    listenToSpeech({
+      onResult: (spokenText) => {
+        setName(spokenText);
+      },
+      onError: () => setIsListening(false),
+      onEnd: () => setIsListening(false),
+    });
+  };
 
   useEffect(() => {
     if (category) {
@@ -109,15 +126,31 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({ category, isOpen, 
             <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5">
               Category Name
             </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Finance, Learning, Health, Side Project..."
-              required
-              className="w-full text-sm font-medium px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              autoFocus
-            />
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Finance, Learning, Health, Side Project..."
+                required
+                className={`w-full text-sm font-medium pl-3.5 pr-11 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                  isListening ? 'border-rose-500 ring-2 ring-rose-500/20 animate-pulse' : 'border-slate-200 dark:border-slate-700'
+                }`}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={handleVoiceInput}
+                className={`absolute right-2 p-1.5 rounded-lg transition-colors ${
+                  isListening
+                    ? 'bg-rose-500 text-white animate-pulse'
+                    : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+                }`}
+                title="Speak category name"
+              >
+                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {/* Color Picker */}
