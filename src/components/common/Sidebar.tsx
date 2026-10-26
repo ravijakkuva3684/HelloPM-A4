@@ -14,7 +14,8 @@ import {
   Database,
   CalendarCheck,
   Settings,
-  Download
+  Download,
+  Sparkles
 } from 'lucide-react';
 import { useTasks } from '@/context/TaskContext';
 import { useAuth } from '@/context/AuthContext';
@@ -223,6 +224,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenNewCategory }) => {
 
       {/* Footer & Cloud Persistence Status */}
       <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+        <Link
+          href="/onboarding"
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 rounded-lg bg-indigo-50/70 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 transition-colors font-semibold"
+        >
+          <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+          <span>Product Tour (4 Slides)</span>
+        </Link>
+
         <div className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-slate-100/70 dark:bg-slate-800/50 text-[11px]">
           <div className="flex items-center gap-1.5">
             <Database className="h-3.5 w-3.5 text-indigo-500" />

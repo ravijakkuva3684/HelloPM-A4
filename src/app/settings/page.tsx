@@ -83,6 +83,13 @@ export default function SettingsPage() {
             >
               <ArrowLeft className="h-3 w-3" /> Back to Tasks
             </Link>
+            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <Link
+              href="/onboarding"
+              className="text-xs font-semibold text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline inline-flex items-center gap-1"
+            >
+              <Sparkles className="h-3 w-3 text-indigo-500" /> Replay 4-Slide Tour
+            </Link>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Settings & Preferences

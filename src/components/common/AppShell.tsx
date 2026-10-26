@@ -1,28 +1,77 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { DailySummaryModal } from '@/components/tasks/DailySummaryModal';
 import { CategoryModal } from '@/components/categories/CategoryModal';
-import { TaskDetailModal } from '@/components/tasks/TaskDetailModal';
 import { QuickTaskInput } from '@/components/tasks/QuickTaskInput';
-import { X, Sun, Calendar, Inbox, CheckCircle, Plus } from 'lucide-react';
+import { X, Sun, Calendar, Inbox, CheckCircle2, Plus } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTasks } from '@/context/TaskContext';
+import { useAuth } from '@/context/AuthContext';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
+  const router = useRouter();
   const { setActiveFilter, setSelectedCategory } = useTasks();
+  const { isLoggedIn, hasCompletedOnboarding, loading } = useAuth();
 
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
-  const isAuthPage = pathname?.startsWith('/auth');
+  // Authentication & Onboarding Guards
+  useEffect(() => {
+    if (loading) return;
 
-  if (isAuthPage) {
-    return <main className="flex-1">{children}</main>;
+    const isAuthPage = pathname?.startsWith('/auth');
+    const isOnboardingPage = pathname === '/onboarding';
+
+    if (!isLoggedIn) {
+      if (!isAuthPage) {
+        router.push('/auth/login');
+      }
+    } else {
+      // User is logged in
+      if (!hasCompletedOnboarding && !isOnboardingPage) {
+        router.push('/onboarding');
+      } else if (hasCompletedOnboarding && isAuthPage) {
+        router.push('/');
+      }
+    }
+  }, [isLoggedIn, hasCompletedOnboarding, loading, pathname, router]);
+
+  // Loading Screen
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25 mb-3 animate-pulse">
+          <CheckCircle2 className="h-6 w-6" />
+        </div>
+        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 animate-pulse">
+          Loading Remindly...
+        </p>
+      </div>
+    );
+  }
+
+  const isAuthPage = pathname?.startsWith('/auth');
+  const isOnboardingPage = pathname === '/onboarding';
+
+  // Dedicated full-page view for Auth and 4-Slide Onboarding
+  if (isAuthPage || isOnboardingPage) {
+    return <main className="flex-1 min-h-screen">{children}</main>;
+  }
+
+  // If not authenticated and not on auth page yet (waiting for redirect)
+  if (!isLoggedIn) {
+    return null;
+  }
+
+  // If authenticated but haven't finished onboarding yet (waiting for redirect)
+  if (!hasCompletedOnboarding) {
+    return null;
   }
 
   return (

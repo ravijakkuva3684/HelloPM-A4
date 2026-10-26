@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Bell, 
   Search, 
@@ -27,6 +28,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd }) => {
+  const router = useRouter();
   const { searchQuery, setSearchQuery } = useTasks();
   const { 
     notifications, 
@@ -259,15 +261,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd }) => {
                 Calendar Schedule
               </Link>
 
+              <Link
+                href="/onboarding"
+                onClick={() => setShowUserMenu(false)}
+                className="flex items-center gap-2.5 px-3 py-2 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg font-medium transition-colors"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                Product Tour (4 Slides)
+              </Link>
+
               <div className="my-1 border-t border-slate-100 dark:border-slate-800"></div>
 
-              {user || isDemoMode ? (
+              {user || isDemoMode || profile ? (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setShowUserMenu(false);
-                    signOut();
+                    await signOut();
+                    router.push('/auth/login');
                   }}
-                  className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                  className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
                 >
                   <LogOut className="h-3.5 w-3.5 text-rose-500" />
                   Sign Out
@@ -279,7 +291,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuickAdd }) => {
                   className="flex items-center gap-2.5 px-3 py-2 text-xs text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg font-medium transition-colors"
                 >
                   <UserIcon className="h-3.5 w-3.5" />
-                  Sign In with Supabase
+                  Sign In / Register
                 </Link>
               )}
             </div>
