@@ -13,7 +13,8 @@ import {
   Bell,
   Sun,
   Moon,
-  Mic
+  Mic,
+  RotateCcw
 } from 'lucide-react';
 import { Task, SnoozeOption } from '@/types';
 import { useTasks } from '@/context/TaskContext';
@@ -70,19 +71,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
         <button
           type="button"
           onClick={handleToggle}
-          className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-xl border-2 transition-all cursor-pointer ${
+          className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl border-2 transition-all cursor-pointer ${
             isCompleted
               ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm ring-2 ring-emerald-500/20'
-              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-emerald-500 hover:bg-emerald-50/60 dark:hover:border-emerald-400 group-hover:scale-105'
+              : 'border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-800/60 hover:border-emerald-500 hover:bg-emerald-50 text-slate-300 hover:text-emerald-600'
           }`}
           title={isCompleted ? 'Mark as pending' : 'Click to complete task'}
           aria-label={isCompleted ? 'Mark as pending' : 'Click to complete task'}
         >
-          {isCompleted ? (
-            <Check className="h-4 w-4 stroke-[3]" />
-          ) : (
-            <Check className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600 opacity-0 hover:opacity-100 transition-opacity stroke-[2.5]" />
-          )}
+          <Check className={`h-4 w-4 stroke-[3] transition-all ${isCompleted ? 'opacity-100 text-white' : 'opacity-40 hover:opacity-100'}`} />
         </button>
 
         {/* Content Details */}
@@ -90,21 +87,45 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
           <div className="flex items-start justify-between gap-2">
             <h4
               onClick={() => onEdit(task)}
-              className={`text-sm font-semibold cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${
+              className={`text-sm font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${
                 isCompleted ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'
               }`}
             >
               {task.title}
             </h4>
 
-            {/* Quick Actions (Hover visible on desktop) */}
-            <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Quick Actions & Explicit Complete Button */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {/* Dedicated Complete / Reopen Action Button */}
+              <button
+                type="button"
+                onClick={handleToggle}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
+                  isCompleted
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow-sm'
+                }`}
+                title={isCompleted ? 'Mark task as pending' : 'Mark task as completed'}
+              >
+                {isCompleted ? (
+                  <>
+                    <RotateCcw className="h-3 w-3 stroke-[2.5]" />
+                    <span>Reopen</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    <span>Complete</span>
+                  </>
+                )}
+              </button>
+
               {!isCompleted && (
                 <>
                   <SnoozeDropdown onSnooze={(opt, custom) => snoozeTask(task.id, opt, custom)} />
                   <button
                     onClick={() => setShowReschedule(!showReschedule)}
-                    className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                     title="Reschedule Due Date"
                   >
                     <Calendar className="h-3.5 w-3.5" />
@@ -113,14 +134,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
               )}
               <button
                 onClick={() => onEdit(task)}
-                className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Edit Details"
               >
                 <Edit3 className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => deleteTask(task.id)}
-                className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Delete Task"
               >
                 <Trash2 className="h-3.5 w-3.5" />

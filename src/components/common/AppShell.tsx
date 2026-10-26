@@ -8,6 +8,8 @@ import { CategoryModal } from '@/components/categories/CategoryModal';
 import { AddNewModal } from '@/components/common/AddNewModal';
 import { AiPlanningModal } from '@/components/common/AiPlanningModal';
 import { VoiceAssistantModal } from '@/components/common/VoiceAssistantModal';
+import LoginPage from '@/app/auth/login/page';
+import OnboardingPage from '@/app/onboarding/page';
 import { X, Sun, Calendar, Inbox, CheckCircle2, Plus, Mic, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -68,14 +70,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="flex-1 min-h-screen">{children}</main>;
   }
 
-  // If not authenticated and not on auth page yet (waiting for redirect)
+  // If not authenticated, render LoginPage directly (eliminates blank redirect screen)
   if (!isLoggedIn) {
-    return null;
+    return <main className="flex-1 min-h-screen"><LoginPage /></main>;
   }
 
-  // If authenticated but haven't finished onboarding yet (waiting for redirect)
+  // If authenticated but haven't finished onboarding yet, render OnboardingPage directly
   if (!hasCompletedOnboarding) {
-    return null;
+    return <main className="flex-1 min-h-screen"><OnboardingPage /></main>;
   }
 
   return (

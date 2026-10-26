@@ -26,8 +26,8 @@ import { CategoryModal } from '@/components/categories/CategoryModal';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
 import { AiPlanningModal } from '@/components/common/AiPlanningModal';
 import { Task, Category } from '@/types';
-import { isTaskOverdue, isTaskDueToday } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
+import { isTaskOverdue, isTaskDueToday, safeParseDate } from '@/lib/utils';
+import { format, startOfDay } from 'date-fns';
 
 export default function DashboardPage() {
   const { profile } = useAuth();
@@ -56,9 +56,9 @@ export default function DashboardPage() {
       // 1. Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesTitle = task.title.toLowerCase().includes(q);
-        const matchesDesc = task.description?.toLowerCase().includes(q);
-        const matchesCat = task.category?.name.toLowerCase().includes(q);
+        const matchesTitle = task.title ? task.title.toLowerCase().includes(q) : false;
+        const matchesDesc = task.description ? task.description.toLowerCase().includes(q) : false;
+        const matchesCat = task.category?.name ? task.category.name.toLowerCase().includes(q) : false;
         if (!matchesTitle && !matchesDesc && !matchesCat) return false;
       }
 
@@ -79,8 +79,9 @@ export default function DashboardPage() {
 
       if (activeFilter === 'upcoming') {
         if (task.status === 'completed') return false;
-        const todayStr = format(new Date(), 'yyyy-MM-dd');
-        return Boolean(task.due_date && task.due_date > todayStr && !isTaskOverdue(task));
+        const d = safeParseDate(task.due_date);
+        if (!d) return false;
+        return startOfDay(d) > startOfDay(new Date()) && !isTaskOverdue(task);
       }
 
       // 'all' filter shows pending tasks in sections
@@ -100,10 +101,13 @@ export default function DashboardPage() {
   );
 
   const upcomingTasks = useMemo(() => {
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
-    return filteredTasks.filter(
-      (t) => t.status === 'pending' && t.due_date && t.due_date > todayStr && !isTaskOverdue(t)
-    );
+    const today = startOfDay(new Date());
+    return filteredTasks.filter((t) => {
+      if (t.status !== 'pending' || !t.due_date) return false;
+      const d = safeParseDate(t.due_date);
+      if (!d) return false;
+      return startOfDay(d) > today && !isTaskOverdue(t);
+    });
   }, [filteredTasks]);
 
   const noDateTasks = useMemo(

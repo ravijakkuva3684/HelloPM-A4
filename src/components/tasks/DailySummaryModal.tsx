@@ -21,8 +21,8 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '@/context/NotificationContext';
 import { useTasks } from '@/context/TaskContext';
-import { formatDueLabel, isTaskOverdue, isTaskDueToday, formatTime } from '@/lib/utils';
-import { format, addDays, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { formatDueLabel, isTaskOverdue, isTaskDueToday, formatTime, safeParseDate } from '@/lib/utils';
+import { format, addDays, startOfDay } from 'date-fns';
 import { listenToSpeech } from '@/lib/speech';
 
 type DigestTab = 'today' | 'next7' | 'next30';
@@ -39,59 +39,93 @@ export const DailySummaryModal: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [isListening, setIsListening] = useState(false);
 
-  if (!showDailySummaryModal) return null;
-
   const today = startOfDay(new Date());
   const todayStr = format(today, 'yyyy-MM-dd');
-  const next7DaysLimit = addDays(today, 7);
-  const next30DaysLimit = addDays(today, 30);
+  const next7DaysLimit = startOfDay(addDays(today, 7));
+  const next30DaysLimit = startOfDay(addDays(today, 30));
 
   // Tab tasks partitioning
-  const overdueTasks = tasks.filter((t) => t.status === 'pending' && isTaskOverdue(t));
-  const todayTasks = tasks.filter((t) => t.status === 'pending' && isTaskDueToday(t));
+  const overdueTasks = (tasks || []).filter((t) => t.status === 'pending' && isTaskOverdue(t));
+  const todayTasks = (tasks || []).filter((t) => t.status === 'pending' && isTaskDueToday(t));
+
+  const next7Count = (tasks || []).filter((t) => {
+    if (t.status !== 'pending' || !t.due_date) return false;
+    const d = safeParseDate(t.due_date);
+    if (!d) return false;
+    const targetDay = startOfDay(d);
+    return targetDay >= today && targetDay <= next7DaysLimit;
+  }).length;
+
+  const next30Count = (tasks || []).filter((t) => {
+    if (t.status !== 'pending' || !t.due_date) return false;
+    const d = safeParseDate(t.due_date);
+    if (!d) return false;
+    const targetDay = startOfDay(d);
+    return targetDay >= today && targetDay <= next30DaysLimit;
+  }).length;
 
   const tabFilteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      // 1. Tab criteria
-      if (activeTab === 'today') {
-        const isToday = isTaskDueToday(task);
-        const isOverdue = isTaskOverdue(task);
-        if (!isToday && !isOverdue) return false;
-      } else if (activeTab === 'next7') {
-        if (!task.due_date) return false;
-        const d = startOfDay(parseISO(task.due_date));
-        if (d < today || d > next7DaysLimit) return false;
-      } else if (activeTab === 'next30') {
-        if (!task.due_date) return false;
-        const d = startOfDay(parseISO(task.due_date));
-        if (d < today || d > next30DaysLimit) return false;
-      }
+    try {
+      return (tasks || []).filter((task) => {
+        // 1. Tab criteria
+        if (activeTab === 'today') {
+          const isToday = isTaskDueToday(task);
+          const isOverdue = isTaskOverdue(task);
+          if (!isToday && !isOverdue) return false;
+        } else if (activeTab === 'next7') {
+          if (!task.due_date) return false;
+          const d = safeParseDate(task.due_date);
+          if (!d) return false;
+          const targetDay = startOfDay(d);
+          if (targetDay < today || targetDay > next7DaysLimit) return false;
+        } else if (activeTab === 'next30') {
+          if (!task.due_date) return false;
+          const d = safeParseDate(task.due_date);
+          if (!d) return false;
+          const targetDay = startOfDay(d);
+          if (targetDay < today || targetDay > next30DaysLimit) return false;
+        }
 
-      // 2. Search query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesTitle = task.title.toLowerCase().includes(q);
-        const matchesDesc = task.description?.toLowerCase().includes(q);
-        const matchesCat = task.category?.name.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesDesc && !matchesCat) return false;
-      }
+        // 2. Search query filter
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matchesTitle = task.title ? task.title.toLowerCase().includes(q) : false;
+          const matchesDesc = task.description ? task.description.toLowerCase().includes(q) : false;
+          const matchesCat = task.category?.name ? task.category.name.toLowerCase().includes(q) : false;
+          if (!matchesTitle && !matchesDesc && !matchesCat) return false;
+        }
 
-      // 3. Category filter
-      if (selectedCategory !== 'all') {
-        if (task.category_id !== selectedCategory) return false;
-      }
+        // 3. Category filter
+        if (selectedCategory !== 'all') {
+          if (task.category_id !== selectedCategory) return false;
+        }
 
-      // 4. Status filter
-      if (statusFilter !== 'all') {
-        if (task.status !== statusFilter) return false;
-      }
+        // 4. Status filter
+        if (statusFilter !== 'all') {
+          if (task.status !== statusFilter) return false;
+        }
 
-      // 5. Date range filter
-      if (startDate && task.due_date && task.due_date < startDate) return false;
-      if (endDate && task.due_date && task.due_date > endDate) return false;
+        // 5. Date range filter
+        if (startDate || endDate) {
+          const d = safeParseDate(task.due_date);
+          if (!d) return false;
+          const targetDay = startOfDay(d);
+          if (startDate) {
+            const s = safeParseDate(startDate);
+            if (s && targetDay < startOfDay(s)) return false;
+          }
+          if (endDate) {
+            const e = safeParseDate(endDate);
+            if (e && targetDay > startOfDay(e)) return false;
+          }
+        }
 
-      return true;
-    });
+        return true;
+      });
+    } catch (err) {
+      console.error('Error filtering digest tasks:', err);
+      return [];
+    }
   }, [tasks, activeTab, searchQuery, selectedCategory, statusFilter, startDate, endDate, today, next7DaysLimit, next30DaysLimit]);
 
   const handleSnoozeAllOverdue = () => {
@@ -125,6 +159,9 @@ export const DailySummaryModal: React.FC = () => {
   };
 
   const hasActiveFilters = Boolean(searchQuery || selectedCategory !== 'all' || statusFilter !== 'all' || startDate || endDate);
+
+  // Unconditional hook safety: guard modal render right before JSX return
+  if (!showDailySummaryModal) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
@@ -164,7 +201,7 @@ export const DailySummaryModal: React.FC = () => {
             >
               <Sun className="h-3.5 w-3.5" />
               <span>Today</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === 'today' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'}`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'today' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'}`}>
                 {todayTasks.length + overdueTasks.length}
               </span>
             </button>
@@ -180,8 +217,8 @@ export const DailySummaryModal: React.FC = () => {
             >
               <CalendarDays className="h-3.5 w-3.5" />
               <span>Next 7 Days</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === 'next7' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'}`}>
-                {tasks.filter((t) => t.status === 'pending' && t.due_date && t.due_date >= todayStr && t.due_date <= format(next7DaysLimit, 'yyyy-MM-dd')).length}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'next7' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'}`}>
+                {next7Count}
               </span>
             </button>
 
@@ -196,8 +233,8 @@ export const DailySummaryModal: React.FC = () => {
             >
               <CalendarRange className="h-3.5 w-3.5" />
               <span>Next 30 Days</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === 'next30' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'}`}>
-                {tasks.filter((t) => t.status === 'pending' && t.due_date && t.due_date >= todayStr && t.due_date <= format(next30DaysLimit, 'yyyy-MM-dd')).length}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === 'next30' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'}`}>
+                {next30Count}
               </span>
             </button>
           </div>
@@ -251,7 +288,7 @@ export const DailySummaryModal: React.FC = () => {
               className="px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
             >
               <option value="all">All Categories</option>
-              {categories.map((c) => (
+              {(categories || []).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
@@ -360,13 +397,14 @@ export const DailySummaryModal: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => toggleTaskStatus(task.id)}
-                        className={`h-5 w-5 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
+                        className={`h-6 w-6 rounded-xl border-2 flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
                           isCompleted
-                            ? 'bg-emerald-500 border-emerald-500 text-white'
-                            : 'border-slate-300 hover:border-emerald-500'
+                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-xs'
+                            : 'border-slate-300 dark:border-slate-600 hover:border-emerald-500 hover:bg-emerald-50 text-slate-300 hover:text-emerald-600'
                         }`}
+                        title={isCompleted ? 'Mark as pending' : 'Click to complete task'}
                       >
-                        {isCompleted && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                        <Check className={`h-3.5 w-3.5 stroke-[3] ${isCompleted ? 'opacity-100' : 'opacity-0 hover:opacity-100'}`} />
                       </button>
 
                       <div className="min-w-0">
@@ -380,10 +418,26 @@ export const DailySummaryModal: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Priority badge */}
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                      {task.priority}
-                    </span>
+                    {/* Actions: Explicit Complete / Completed button & Priority badge */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => toggleTaskStatus(task.id)}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          isCompleted
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                        }`}
+                        title={isCompleted ? 'Click to reopen' : 'Click to complete'}
+                      >
+                        <Check className="h-3 w-3 stroke-[3]" />
+                        <span>{isCompleted ? 'Completed' : 'Complete'}</span>
+                      </button>
+
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                        {task.priority}
+                      </span>
+                    </div>
                   </div>
                 );
               })}

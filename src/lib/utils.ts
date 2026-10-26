@@ -5,7 +5,6 @@ import {
   isToday, 
   isTomorrow, 
   isYesterday, 
-  isPast, 
   parseISO, 
   addHours, 
   addDays, 
@@ -23,13 +22,71 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format a task due date into human readable text (e.g. "Today", "Tomorrow", "Oct 25")
+ * Safely parse any date string (ISO, DD-MM-YYYY, or standard formats)
+ * Returns null if invalid, NEVER throws.
  */
-export function formatDueLabel(dateStr: string | null, timeStr: string | null): { text: string; isOverdue: boolean; isToday: boolean } {
+export function safeParseDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const trimmed = dateStr.trim();
+  if (!trimmed || trimmed === '--' || trimmed === 'null' || trimmed === 'undefined') return null;
+
+  try {
+    // 1. Standard ISO: YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      const d = parseISO(trimmed);
+      if (!isNaN(d.getTime())) return d;
+    }
+
+    // 2. Format: DD-MM-YYYY (e.g. 26-10-2026)
+    if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmed)) {
+      const parts = trimmed.split('-').map(Number);
+      if (parts.length === 3) {
+        const [day, month, year] = parts;
+        const d = new Date(year, month - 1, day);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+
+    // 3. Format: DD/MM/YYYY or YYYY/MM/DD
+    if (trimmed.includes('/')) {
+      const parts = trimmed.split('/').map(Number);
+      if (parts.length === 3) {
+        if (parts[0] > 1000) {
+          const d = new Date(parts[0], parts[1] - 1, parts[2]);
+          if (!isNaN(d.getTime())) return d;
+        } else {
+          const d = new Date(parts[2], parts[1] - 1, parts[0]);
+          if (!isNaN(d.getTime())) return d;
+        }
+      }
+    }
+
+    // 4. General Date constructor fallback
+    const fallback = new Date(trimmed);
+    if (!isNaN(fallback.getTime())) return fallback;
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Format a task due date into human readable text (e.g. "Today", "Tomorrow", "Oct 25")
+ * 100% resilient against non-standard or invalid dates.
+ */
+export function formatDueLabel(
+  dateStr: string | null | undefined, 
+  timeStr: string | null | undefined
+): { text: string; isOverdue: boolean; isToday: boolean } {
   if (!dateStr) return { text: 'No due date', isOverdue: false, isToday: false };
 
   try {
-    const date = parseISO(dateStr);
+    const date = safeParseDate(dateStr);
+    if (!date) {
+      return { text: String(dateStr), isOverdue: false, isToday: false };
+    }
+
     const today = startOfDay(new Date());
     const targetDay = startOfDay(date);
 
@@ -47,8 +104,9 @@ export function formatDueLabel(dateStr: string | null, timeStr: string | null): 
       baseText = format(date, 'MMM d, yyyy');
     }
 
-    if (timeStr) {
-      baseText += ` at ${formatTime(timeStr)}`;
+    const formattedT = formatTime(timeStr);
+    if (formattedT) {
+      baseText += ` at ${formattedT}`;
     }
 
     return {
@@ -57,21 +115,32 @@ export function formatDueLabel(dateStr: string | null, timeStr: string | null): 
       isToday: dueToday,
     };
   } catch {
-    return { text: dateStr, isOverdue: false, isToday: false };
+    return { text: String(dateStr), isOverdue: false, isToday: false };
   }
 }
 
 /**
  * Convert 24h '14:30' into '2:30 PM'
+ * Gracefully ignores '--:--', null, undefined, or invalid times.
  */
-export function formatTime(timeStr: string | null): string {
-  if (!timeStr) return '';
+export function formatTime(timeStr: string | null | undefined): string {
+  if (!timeStr || typeof timeStr !== 'string') return '';
+  const trimmed = timeStr.trim();
+  if (!trimmed || trimmed.includes('--') || !trimmed.includes(':')) return '';
+
   try {
-    const [hours, minutes] = timeStr.split(':').map(Number);
+    const parts = trimmed.split(':').map(Number);
+    if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return '';
+
+    const [hours, minutes] = parts;
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return '';
+
     const date = setMinutes(setHours(new Date(), hours), minutes);
+    if (isNaN(date.getTime())) return '';
+
     return format(date, 'h:mm a');
   } catch {
-    return timeStr;
+    return '';
   }
 }
 
@@ -84,15 +153,19 @@ export function isTaskOverdue(task: Task): boolean {
   if (task.status === 'completed' || !task.due_date) return false;
   
   // If snoozed into the future, it is not overdue yet
-  if (task.snooze_until && new Date(task.snooze_until) > new Date()) {
-    return false;
+  if (task.snooze_until) {
+    const snoozeDate = safeParseDate(task.snooze_until);
+    if (snoozeDate && snoozeDate > new Date()) return false;
   }
 
+  const dueDate = safeParseDate(task.due_date);
+  if (!dueDate) return false;
+
   const today = startOfDay(new Date());
-  const dueDate = startOfDay(parseISO(task.due_date));
+  const targetDay = startOfDay(dueDate);
   
   // Only overdue once the day has strictly passed
-  return dueDate < today;
+  return targetDay < today;
 }
 
 /**
@@ -100,9 +173,11 @@ export function isTaskOverdue(task: Task): boolean {
  */
 export function isTaskDueToday(task: Task): boolean {
   if (task.status === 'completed' || !task.due_date) return false;
+  const dueDate = safeParseDate(task.due_date);
+  if (!dueDate) return false;
+
   const today = startOfDay(new Date());
-  const dueDate = startOfDay(parseISO(task.due_date));
-  return isSameDay(dueDate, today);
+  return isSameDay(startOfDay(dueDate), today);
 }
 
 /**
@@ -120,57 +195,57 @@ export function computeSnoozeTimestamp(option: SnoozeOption, customDate?: Date):
       target = addHours(now, 3);
       break;
     case 'thisEvening':
-      target = setMinutes(setHours(now, 19), 0);
-      if (target <= now) {
-        target = addHours(now, 2);
-      }
+      target = setHours(setMinutes(now, 0), 19);
+      if (target <= now) target = addHours(now, 2);
       break;
     case 'tomorrowMorning':
-      target = setMinutes(setHours(addDays(now, 1), 9), 0);
+      target = setHours(setMinutes(addDays(now, 1), 0), 9);
       break;
     case 'nextWeek':
-      target = setMinutes(setHours(addDays(now, 7), 9), 0);
+      target = setHours(setMinutes(addWeeks(now, 1), 0), 9);
       break;
     case 'custom':
-      if (customDate) {
+      if (customDate && !isNaN(customDate.getTime())) {
         target = customDate;
+      } else {
+        target = addHours(now, 1);
       }
       break;
+    default:
+      target = addHours(now, 1);
   }
 
   return target.toISOString();
 }
 
 /**
- * Compute next occurrence for a recurring task
+ * Calculate the next recurrence date for repeating responsibilities
  */
-export function computeNextRecurringDate(currentDateStr: string | null, pattern: RecurrencePattern, interval = 1): string {
-  const baseDate = currentDateStr ? parseISO(currentDateStr) : new Date();
-  let nextDate = new Date();
+export function computeNextRecurringDate(
+  currentDueDate: string | null | undefined,
+  pattern: RecurrencePattern | null | undefined,
+  interval: number = 1
+): string {
+  const baseDate = safeParseDate(currentDueDate) || new Date();
+  let nextDate = new Date(baseDate);
 
   switch (pattern) {
     case 'daily':
       nextDate = addDays(baseDate, interval || 1);
       break;
-    case 'weekdays': {
-      let d = addDays(baseDate, 1);
-      while (d.getDay() === 0 || d.getDay() === 6) {
-        d = addDays(d, 1);
-      }
-      nextDate = d;
+    case 'weekdays':
+      do {
+        nextDate = addDays(nextDate, 1);
+      } while (nextDate.getDay() === 0 || nextDate.getDay() === 6);
       break;
-    }
     case 'weekly':
       nextDate = addWeeks(baseDate, interval || 1);
       break;
     case 'biweekly':
-      nextDate = addWeeks(baseDate, 2 * (interval || 1));
+      nextDate = addWeeks(baseDate, (interval || 1) * 2);
       break;
     case 'monthly':
       nextDate = addMonths(baseDate, interval || 1);
-      break;
-    case 'custom':
-      nextDate = addDays(baseDate, interval || 1);
       break;
     default:
       nextDate = addDays(baseDate, 1);
@@ -180,19 +255,21 @@ export function computeNextRecurringDate(currentDateStr: string | null, pattern:
 }
 
 /**
- * Format date into iCal standard format YYYYMMDDTHHMMSSZ
+ * Format date and time for iCalendar RFC-5545 (.ics export)
+ * e.g. "20261026T143000" or "20261026"
  */
 export function formatToICalDate(dateStr: string, timeStr?: string | null): string {
   try {
-    const base = parseISO(dateStr);
-    if (timeStr) {
+    const d = safeParseDate(dateStr) || new Date();
+    if (timeStr && timeStr.includes(':')) {
       const [h, m] = timeStr.split(':').map(Number);
-      base.setHours(h, m, 0, 0);
-    } else {
-      base.setHours(9, 0, 0, 0);
+      if (!isNaN(h) && !isNaN(m)) {
+        d.setHours(h, m, 0, 0);
+        return format(d, "yyyyMMdd'T'HHmmss");
+      }
     }
-    return base.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    return format(d, 'yyyyMMdd');
   } catch {
-    return new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    return format(new Date(), 'yyyyMMdd');
   }
 }
